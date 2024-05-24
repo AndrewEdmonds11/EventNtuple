@@ -15,6 +15,9 @@ namespace mu2e
     float pbtime = 0.0;
     float  pbterr = 0.0; // estimated proton bunch time (and error)
     void reset() {*this = EventInfo(); }
+
+    double get(std::string leaf);
+    void help(std::string leaf);
   };
   struct EventInfoMC {
     int nprotons = 0 ; // MC true # of protons on target for this microbunch

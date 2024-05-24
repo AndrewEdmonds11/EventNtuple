@@ -80,7 +80,7 @@ helper.make_dict_and_map( [
         'canvas'
     ] )
 
-helper.make_bin( "trkanahelp", ['trkana', 'trkana_InfoStructs'] )
+helper.make_pywrap ()
 
 # This tells emacs to view this file in python mode.
 # Local Variables:

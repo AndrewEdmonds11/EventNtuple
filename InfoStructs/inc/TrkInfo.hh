@@ -9,6 +9,7 @@
 #include "Offline/DataProducts/inc/GenVector.hh"
 #include "Offline/KinKalGeom/inc/SurfaceId.hh"
 #include "Offline/MCDataProducts/inc/MCRelationship.hh"
+
 #include "Rtypes.h"
 namespace mu2e
 {
@@ -80,6 +81,10 @@ namespace mu2e
     float firsthit =0, lasthit =0;  // first and last hit (time or distance)
     float maxgap =-1, avggap =-1; // fit trajectory gaps
     void reset() { *this = TrkInfo(); }
+
+    const double get(std::string leaf) const;
+    void help(std::string leaf) const;
+
   };
 
   // general NC info about the particle which generated the majority of the hits used in this track
