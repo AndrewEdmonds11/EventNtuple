@@ -17,7 +17,7 @@
 #include "Offline/CalorimeterGeom/inc/DiskCalorimeter.hh"
 
 #include "TrkAna/inc/HitCount.hh"
-#include "TrkAna/inc/TrkInfo.hh"
+#include "TrkAna/InfoStructs/inc/TrkInfo.hh"
 #include "TrkAna/inc/TrkStrawHitInfo.hh"
 #include "TrkAna/inc/TrkStrawMatInfo.hh"
 #include "TrkAna/inc/TrkCaloHitInfo.hh"
