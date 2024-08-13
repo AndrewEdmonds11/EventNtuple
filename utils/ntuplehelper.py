@@ -39,6 +39,18 @@ class nthelp:
                            "crvcoincsmcplane" : "CrvPlaneInfoMC"
                           }
 
+    aliases_dict = { }
+
+    def __init__(self):
+        with open(os.environ.get("TRKANA_INC")+"/TrkAna/fcl/prolog.fcl", 'r') as f:
+            lines = f.readlines()
+            for row in lines:
+                if "alias" in row and not "aliases" in row:
+                    split=row.split("{ alias : ")[1].split("cut : ")
+                    name=split[0].replace('"', '').replace(' ', '')
+                    cut=split[1].split('}')[0].replace('"', '').replace(' ', '')
+                    self.aliases_dict[name] = cut
+
     def check_track_type(self, branch):
         retval = ["", ""]
         if "crv" not in branch: # "umm" is matching "crvsummary"
@@ -49,6 +61,11 @@ class nthelp:
 
         return retval
 
+    def list_aliases(self):
+        print("Here are all the aliases defined in the ntuple:")
+        for key, value in self.aliases_dict.items():
+            print("\t"+key+" --> "+value)
+
     def whatis(self, array):
         if type(array) is not list: # if a single string is passed, put it into an array
             array = [array]
@@ -56,6 +73,11 @@ class nthelp:
         # Let's collect leaves from the same branch so that we don't repeat information
         branch_leaves_dict = {}
         for item in array:
+            if item in self.aliases_dict:
+                aliases_output = "\"" + item + "\" is an alias for \"" + self.aliases_dict[item] + "\""
+                print(aliases_output)
+                continue
+
             # Expecting "item" to be of form "branch.leaf"
             tokens = item.split('.')
             branch = tokens[0]

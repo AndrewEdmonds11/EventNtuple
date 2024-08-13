@@ -206,6 +206,12 @@ TrkAnaTreeMaker : {
     MaxVDDt : 5 # ns
   }
   ExtraMCStepCollectionTags : [ "compressRecoMCs:protonabsorber", "compressRecoMCs:stoppingtarget" ]
+  aliases : [
+    { alias : "is_dem" cut : "trk.pdg==11 && (trkfit[][2].time - trkfit[][0].time) > 0"},
+    { alias : "is_uem" cut : "trk.pdg==11 && (trkfit[][2].time - trkfit[][0].time) < 0"},
+    { alias : "trkcnt.ndem" cut : "@dem.size()"},
+    { alias : "trkcnt.nuem" cut : "@uem.size()"}
+  ]
 }
 
 TrkAnaReco : {

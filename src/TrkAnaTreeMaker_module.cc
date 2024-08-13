@@ -110,6 +110,13 @@ namespace mu2e {
 
     public:
 
+    struct AliasConfig {
+      using Name=fhicl::Name;
+      using Comment=fhicl::Comment;
+      fhicl::Atom<string> name{Name("alias"), Comment("Name of the alias"), ""};
+      fhicl::Atom<string> cut{Name("cut"), Comment("Cut for the alias"), ""};
+
+    };
       struct BranchOptConfig {
         using Name=fhicl::Name;
         using Comment=fhicl::Comment;
@@ -185,6 +192,8 @@ namespace mu2e {
         fhicl::Atom<art::InputTag> crvMCAssnsTag{ Name("CrvCoincidenceClusterMCAssnsTag"), Comment("art::InputTag for CrvCoincidenceClusterMCAssns")};
         // Pre-processed analysis info; are these redundant with the branch config ?
         fhicl::Atom<bool> filltrkpid{Name("FillTrkPIDInfo"),false};
+
+        fhicl::Sequence<fhicl::Table<AliasConfig> > aliases{Name("aliases"), Comment("All the aliases we want to set")};
       };
       typedef art::EDAnalyzer::Table<Config> Parameters;
 
@@ -194,11 +203,13 @@ namespace mu2e {
       void beginJob();
       void beginSubRun(const art::SubRun & subrun ) override;
       void analyze(const art::Event& e);
+      void endJob() override;
 
     private:
 
       Config _conf;
       std::vector<BranchConfig> _allBranches; // configurations for all track branches
+      std::vector<AliasConfig> _allAliases; // configurations for all alliases
 
       // main TTree
       TTree* _trkana;
@@ -337,6 +348,11 @@ namespace mu2e {
     // Put all the branch configurations together
     for(const auto& branch_cfg : _conf.branches()){
       _allBranches.push_back(branch_cfg);
+    }
+
+    // Put all the alias configurations together
+    for(const auto& alias_cfg : _conf.aliases()){
+      _allAliases.push_back(alias_cfg);
     }
 
     // Create all the info structs
@@ -891,6 +907,13 @@ namespace mu2e {
 
       _allRQIs.at(i_branch).reset();
       _allTPIs.at(i_branch).reset();
+    }
+  }
+
+  void TrkAnaTreeMaker::endJob( ){
+
+    for (const auto& alias : _allAliases) {
+      _trkana->SetAlias(alias.alias().c_str(), alias.cut().c_str());
     }
   }
 }  // end namespace mu2e
