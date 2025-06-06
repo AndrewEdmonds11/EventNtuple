@@ -1,52 +1,150 @@
 #!/bin/bash
 
+#
+# rooutilrunner
+#
+
+# Some global settings
+DEBUG=0
+MAX_JOBS=20
+
 usage() {
 
    cat << EOF
 
-   System to parallilize RooUtil macros on the Elastic Analysi Facility
+   A script to run your RooUtil macro over a large number of files in parallel. This will:
+     - compile your macro into a C++ program,
+     - split your filelist into smaller files,
+     - submit parallel jobs, and
+     - combine the output ROOT files
 
-   parallelize.sh [-h] macro n_jobs
+   rooutilrunner [-h|--help] [-m|--macro MACRO_NAME] [-v|--verbose] [-f|--filelist FILELIST] [-n | --njobs NJOBS]
 
 
    Arguments:
    -h, --help: print help
-   macro: macro.C file that you want to parallelize
-   n_jobs: number of jobs (max: 5)
+   -m, --macro: macro.C file that you want to run in parallel
+   -v, --verbose: debug output
+   -f,--filelist: filelist containing list of files that you want to process
+   -n,--njobs: number of jobs to run in parallel (max: ${MAX_JOBS})
 EOF
 }
 
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    usage
-    return 0
-fi
+vars=$(getopt -o hm:vf:n: --long help,macro:,verbose,filelist:,njobs: -- "$@")
+eval set -- "$vars"
 
+# Defaults
+MACRO_FILE="unknown"
+FILELIST="unknown"
+N_JOBS=1
+
+for opt; do
+    case "$opt" in
+      -h|--help)
+          usage
+	  exit 0
+        ;;
+      -m|--macro)
+	MACRO_FILE=$2
+        shift 2
+        ;;
+      -v|--verbose)
+	DEBUG=1
+        shift 
+        ;;
+      -f|--filelist)
+	FILELIST=$2
+        shift 2
+        ;;
+      -n|--njobs)
+	N_JOBS=$2
+        shift 2
+        ;;
+    esac
+done
+
+echo "Setting up..."
+
+#
+# Make sure we are not on the mu2egpvms
+#
 HOSTNAME=`hostname`
+if [[ ${DEBUG} -eq 1 ]]; then
+    echo "debug: HOSTNAME=${HOSTNAME}"
+fi
 if [[ ${HOSTNAME} == *"mu2egpvm"* ]]; then
     echo "Error: This script should not be run on the mu2egpvms. Run it on the EAF"
-    return 1
+    exit 1
 fi
 
-MACRO_FILE=$1
+#
+# Check that a macro file was supplied and that it exists
+#
+if [[ ${MACRO_FILE} == "unknown" ]]; then
+    echo "Error: Please supply a macro with -m or --macro argument."
+    exit 1
+elif [[ ! -f ${MACRO_FILE} ]]; then
+    echo "Error: Cannot find file ${MACRO_FILE}"
+    exit 1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: MACRO_FILE=${MACRO_FILE}"
+fi
+
+#
+# We will want to call the function from within a program
+# The function name should be the same as the file name
+#
 MACRO_FUNCTION=`echo ${MACRO_FILE##*/} | cut -d '.' -f 1` # special arguments to get macro.C from something that might contain a path, then remove the .C
-#echo $MACRO_FUNCTION
-
-DATASET_FILELIST=$2
-echo ${DATASET_FILELIST}
-
-MAX_JOBS=20
-N_JOBS=$3
-if [[ ${N_JOBS} -gt ${MAX_JOBS} ]]; then
-   N_JOBS=${MAX_JOBS}
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: MACRO_FUNCTION=${MACRO_FUNCTION}"
 fi
-echo ${N_JOBS}
 
+#
+# Now check the filelist
+#
+if [[ ${FILELIST} == "unknown" ]]; then
+    echo "Error: Please supply a filelist with -f or --filelist argument."
+    exit 1
+elif [[ ! -f ${FILELIST} ]]; then
+    echo "Error: Cannot find file ${FILELIST}"
+    exit 1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: FILELIST=${FILELIST}"
+fi
+
+#
+# Now check the number of jobs
+#
+if [[ ${N_JOBS} -gt ${MAX_JOBS} ]]; then
+    N_JOBS=${MAX_JOBS}
+elif [[ ${N_JOBS} -le 0 ]]; then
+    N_JOBS=1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: N_JOBS=${N_JOBS}"
+fi
+
+echo "Will run ${MACRO_FILE} over ${FILELIST} in ${N_JOBS} jobs"
+echo ""
+
+#
+# Now create the subfilelists
+#
 rm sublist*.txt
-split --numeric-suffixes=1 --additional-suffix=.txt -n l/${N_JOBS} ${DATASET_FILELIST} sublist # start at 01
-#ls sublist*.txt
-#wc -l sublist*.txt
+split --numeric-suffixes=1 --additional-suffix=.txt -n l/${N_JOBS} ${FILELIST} sublist # start at 01
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: files per subfilelist"
+    echo "debug: output of wc -l sublist*.txt:"
+    wc -l sublist*.txt
+fi
 
-# Need to get the ROOT_INCLUDE_PATH in order to compile the macro
+#
+# Now we'll compile the macro into a program
+#
+
+# First, need to get the ROOT_INCLUDE_PATH in order to compile the macro
 OLDIFS="$IFS"
 IFS=':' tokens=( $ROOT_INCLUDE_PATH )
 INC_PATHS=""
@@ -54,13 +152,16 @@ for INC_PATH in "${tokens[@]}"; do
     INC_PATHS=${INC_PATHS}" -I"$INC_PATH
 done
 IFS="$OLDIFS" # restore IFS
+if [[ ${DEBUG} -eq 1 ]]; then
+    echo "debug: INC_PATHS=${INC_PATHS}"
+fi
 
 # Add the macro to a new file and also a main function so we can run this as a program
+# We are assuming that the function has two string arguments for the input file(list) and output file
 cat ${MACRO_FILE} > macro.cxx
 echo "
 
 int main(int argc, char* argv[]) {
-   std::cout << argv[0] << \", \" << argv[1] << \", \" << argv[2] << std::endl;
    $MACRO_FUNCTION(argv[1], argv[2]);
    return 0;
 }
@@ -68,17 +169,40 @@ int main(int argc, char* argv[]) {
 " >> macro.cxx
 
 # Compile the program
+echo "Compiling..."
 g++ macro.cxx $(root-config --cflags --libs) ${INC_PATHS} -o macro
+echo "Done"
+echo ""
 
+#
+# Now run all the jobs in parallel
+#
 # Run the program in parallel with different outputs
+echo "Starting ${N_JOBS} jobs..."
 for i in $(seq -f "%02g" 1 ${N_JOBS}); do
     ./macro sublist${i}.txt output_N${i}.root >& output_N${i}.log &
+    if [[ ${DEBUG} -eq 1 ]]; then
+	echo "Job ${i} started"
+    fi
 done
+echo "All jobs started."
+echo "Jobs running..."
 
 # Want to wait for programs to finish
 wait
+echo "All jobs finished"
+echo ""
+
+#
+# Now combine the outputs
+#
 # Combine the outputs
-hadd -f output_full.root output_N*.root
+# TODO: explore the -j option to hadd to parallelize this step too
+echo "Hadding output files..."
+hadd -v ${DEBUG} -f output_full.root output_N*.root
 
 # Clean up
 rm output_N*.root
+
+echo ""
+echo "All done!"
