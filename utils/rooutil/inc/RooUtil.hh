@@ -22,13 +22,11 @@ public:
     }
     else { //  assume its a file list
       std::ifstream filelist(filename);
-
       if (filelist.is_open()) {
         std::string line;
         bool first_line = true;
         while (std::getline(filelist, line)) {
           ntuple->Add(line.c_str());
-
           if (first_line) {
             SetVersionNumber(line);
             first_line = false;
@@ -46,7 +44,7 @@ public:
   void Debug(bool dbg) { debug = dbg; }
 
   void SetVersionNumber(std::string filename) {
-    TFile* file = new TFile(filename.c_str(), "READ");
+    auto file = std::unique_ptr<TFile>{TFile::Open(filename.c_str())};
     TH1I* hVersion = (TH1I*) file->Get("EventNtuple/version");
     if (!hVersion) {
       std::cout << "Warning: this EventNtuple file does not contain a version number. It is either v06_02_00 or older. This is just a warning..." << std::endl;
@@ -60,7 +58,6 @@ public:
                 << std::setw(2) << std::setfill('0') << patchVer << std::endl;
     }
     file->Close();
-    delete file;
   }
 
   int GetNEvents() { return ntuple->GetEntries(); }
