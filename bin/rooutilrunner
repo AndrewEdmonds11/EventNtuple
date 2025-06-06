@@ -12,6 +12,7 @@ DEBUG=0
 MACRO_FILE="unknown"
 FILELIST="unknown"
 N_JOBS=1
+OUTDIR="unknown"
 
 usage() {
 
@@ -23,7 +24,7 @@ usage() {
      - submit parallel jobs, and
      - combine the output ROOT files
 
-   rooutilrunner [-h|--help] [-m|--macro MACRO_NAME] [-v|--verbose] [-f|--filelist FILELIST] [-n|--njobs NJOBS]
+   rooutilrunner [-h|--help] [-m|--macro MACRO_NAME] [-v|--verbose] [-f|--filelist FILELIST] [-n|--njobs NJOBS] [-o|--outdir OUTDIR]
 
 
    Arguments:
@@ -32,10 +33,11 @@ usage() {
    -v, --verbose: debug output
    -f, --filelist: filelist containing list of files that you want to process
    -n, --njobs: number of jobs to run in parallel (default: ${N_JOBS}, max: ${MAX_JOBS})
+   -o, --outdir: directory for output to go
 EOF
 }
 
-vars=$(getopt -o hm:vf:n: --long help,macro:,verbose,filelist:,njobs: -- "$@")
+vars=$(getopt -o hm:vf:n:o: --long help,macro:,verbose,filelist:,njobs:,outdir: -- "$@")
 eval set -- "$vars"
 
 for opt; do
@@ -58,6 +60,10 @@ for opt; do
         ;;
       -n|--njobs)
 	N_JOBS=$2
+        shift 2
+        ;;
+      -o|--outdir)
+	OUTDIR=$2
         shift 2
         ;;
     esac
@@ -130,6 +136,21 @@ echo "Will run ${MACRO_FILE} over ${FILELIST} in ${N_JOBS} jobs"
 echo ""
 
 #
+# Now check the output directory
+#
+if [[ ${OUTDIR} == "unknown" ]]; then
+    echo "Error: Please supply an output directory with -o or --outdir argument."
+    exit 1
+elif [[ ! -d ${OUTDIR} ]]; then
+    echo "Error: Cannot find directory ${OUTDIR}"
+    exit 1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: OUTDIR=${OUTDIR}"
+fi
+
+
+#
 # Now create the subfilelists
 #
 rm sublist*.txt
@@ -184,7 +205,7 @@ echo ""
 # Run the program in parallel with different outputs
 echo "Starting ${N_JOBS} jobs..."
 for i in $(seq -f "%02g" 1 ${N_JOBS}); do
-    ./macro sublist${i}.txt output_N${i}.root >& output_N${i}.log &
+    ./macro sublist${i}.txt ${OUTDIR}/output_N${i}.root >& output_N${i}.log &
     if [[ ${DEBUG} -eq 1 ]]; then
 	echo "Job ${i} started"
     fi
@@ -203,10 +224,10 @@ echo ""
 # Combine the outputs
 # TODO: explore the -j option to hadd to parallelize this step too
 echo "Hadding output files..."
-hadd -v ${DEBUG} -f output_full.root output_N*.root
+hadd -v ${DEBUG} -f ${OUTDIR}/output_full.root ${OUTDIR}/output_N*.root
 
 # Clean up
-rm output_N*.root
+rm ${OUTDIR}/output_N*.root
 
 echo ""
 echo "All done!"
