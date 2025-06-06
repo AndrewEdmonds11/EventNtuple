@@ -69,8 +69,6 @@ for opt; do
     esac
 done
 
-echo "Setting up..."
-
 #
 # Make sure we are not on the mu2egpvms
 #
@@ -84,18 +82,64 @@ if [[ ${HOSTNAME} == *"mu2egpvm"* ]]; then
 fi
 
 #
-# Check that a macro file was supplied and that it exists
+# Check input arguments
 #
+echo "Checking input arguments..."
+BAD_ARGS=0
+
+# Check that a macro file was supplied and that it exists
 if [[ ${MACRO_FILE} == "unknown" ]]; then
     echo "Error: Please supply a macro with -m or --macro argument."
-    exit 1
+    BAD_ARGS=1
 elif [[ ! -f ${MACRO_FILE} ]]; then
-    echo "Error: Cannot find file ${MACRO_FILE}"
-    exit 1
+    echo "Error: Cannot find file \"${MACRO_FILE}\" supplied by -m or --macro argument"
+    BAD_ARGS=1
 fi
 if [ ${DEBUG} -eq 1 ]; then
     echo "debug: MACRO_FILE=${MACRO_FILE}"
 fi
+
+# Now check the filelist was supplied and exists
+if [[ ${FILELIST} == "unknown" ]]; then
+    echo "Error: Please supply a filelist with -f or --filelist argument."
+    BAD_ARGS=1
+elif [[ ! -f ${FILELIST} ]]; then
+    echo "Error: Cannot find filelist \"${FILELIST}\" supplied by -f or --filelist argument"
+    BAD_ARGS=1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: FILELIST=${FILELIST}"
+fi
+
+# Now check the number of jobs
+if [[ ${N_JOBS} -gt ${MAX_JOBS} ]]; then
+    echo "Warning: ${N_JOBS} > ${MAX_JOBS}. Setting N_JOBS=${MAX_JOBS}"
+    N_JOBS=${MAX_JOBS}
+elif [[ ${N_JOBS} -le 0 ]]; then
+    echo "Warning: ${N_JOBS} <=0. Setting N_JOBS=1"
+    N_JOBS=1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: N_JOBS=${N_JOBS}"
+fi
+
+# Now check the output directory
+if [[ ${OUTDIR} == "unknown" ]]; then
+    echo "Error: Please supply an output directory with -o or --outdir argument."
+    BAD_ARGS=1
+elif [[ ! -d ${OUTDIR} ]]; then
+    echo "Error: Cannot find directory \"${OUTDIR}\" supplied by -o or --outdir argument"
+    BAD_ARGS=1
+fi
+if [ ${DEBUG} -eq 1 ]; then
+    echo "debug: OUTDIR=${OUTDIR}"
+fi
+
+if [[ $BAD_ARGS -eq 1 ]]; then
+    echo "Problem(s) with input arguments. Quitting."
+    exit 1
+fi
+echo "Input arguments are OK"
 
 #
 # We will want to call the function from within a program
@@ -106,48 +150,8 @@ if [ ${DEBUG} -eq 1 ]; then
     echo "debug: MACRO_FUNCTION=${MACRO_FUNCTION}"
 fi
 
-#
-# Now check the filelist
-#
-if [[ ${FILELIST} == "unknown" ]]; then
-    echo "Error: Please supply a filelist with -f or --filelist argument."
-    exit 1
-elif [[ ! -f ${FILELIST} ]]; then
-    echo "Error: Cannot find file ${FILELIST}"
-    exit 1
-fi
-if [ ${DEBUG} -eq 1 ]; then
-    echo "debug: FILELIST=${FILELIST}"
-fi
-
-#
-# Now check the number of jobs
-#
-if [[ ${N_JOBS} -gt ${MAX_JOBS} ]]; then
-    N_JOBS=${MAX_JOBS}
-elif [[ ${N_JOBS} -le 0 ]]; then
-    N_JOBS=1
-fi
-if [ ${DEBUG} -eq 1 ]; then
-    echo "debug: N_JOBS=${N_JOBS}"
-fi
-
 echo "Will run ${MACRO_FILE} over ${FILELIST} in ${N_JOBS} jobs"
 echo ""
-
-#
-# Now check the output directory
-#
-if [[ ${OUTDIR} == "unknown" ]]; then
-    echo "Error: Please supply an output directory with -o or --outdir argument."
-    exit 1
-elif [[ ! -d ${OUTDIR} ]]; then
-    echo "Error: Cannot find directory ${OUTDIR}"
-    exit 1
-fi
-if [ ${DEBUG} -eq 1 ]; then
-    echo "debug: OUTDIR=${OUTDIR}"
-fi
 
 
 #
