@@ -84,7 +84,7 @@ fi
 #
 # Check input arguments
 #
-echo "Checking input arguments..."
+echo -n "Checking input arguments..."
 BAD_ARGS=0
 
 # Check that a macro file was supplied and that it exists
@@ -139,7 +139,7 @@ if [[ $BAD_ARGS -eq 1 ]]; then
     echo "Problem(s) with input arguments. Quitting."
     exit 1
 fi
-echo "Input arguments are OK"
+echo " Done"
 
 #
 # We will want to call the function from within a program
@@ -150,13 +150,19 @@ if [ ${DEBUG} -eq 1 ]; then
     echo "debug: MACRO_FUNCTION=${MACRO_FUNCTION}"
 fi
 
-echo "Will run ${MACRO_FILE} over ${FILELIST} in ${N_JOBS} jobs"
-echo ""
-
+#
+# Do some preparation
+#
+echo "Will run:"
+echo "  ${MACRO_FILE}"
+echo "  over ${FILELIST}"
+echo "  in ${N_JOBS} jobs"
+echo "  and write to ${OUTDIR}"
 
 #
 # Now create the subfilelists
 #
+echo -n "Making subfilelists..."
 rm sublist*.txt
 split --numeric-suffixes=1 --additional-suffix=.txt -n l/${N_JOBS} ${FILELIST} sublist # start at 01
 if [ ${DEBUG} -eq 1 ]; then
@@ -164,6 +170,7 @@ if [ ${DEBUG} -eq 1 ]; then
     echo "debug: output of wc -l sublist*.txt:"
     wc -l sublist*.txt
 fi
+echo " Done."
 
 #
 # Now we'll compile the macro into a program
@@ -194,44 +201,42 @@ int main(int argc, char* argv[]) {
 " >> macro.cxx
 
 # Compile the program
-echo "Compiling..."
+echo -n "Compiling..."
 g++ macro.cxx $(root-config --cflags --libs) ${INC_PATHS} -o macro
 if [ $? -ne 0 ]; then
     echo "Compilation failed."
     exit 1
 fi
-echo "Done"
-echo ""
+echo " Done."
 
 #
 # Now run all the jobs in parallel
 #
 # Run the program in parallel with different outputs
-echo "Starting ${N_JOBS} jobs..."
+echo -n "Starting ${N_JOBS} jobs..."
 for i in $(seq -f "%02g" 1 ${N_JOBS}); do
     ./macro sublist${i}.txt ${OUTDIR}/output_N${i}.root >& output_N${i}.log &
     if [[ ${DEBUG} -eq 1 ]]; then
 	echo "Job ${i} started"
     fi
 done
-echo "All jobs started."
-echo "Jobs running..."
+echo " Done."
+echo -n "Running..."
 
 # Want to wait for programs to finish
 wait
-echo "All jobs finished"
-echo ""
+echo " Done."
 
 #
 # Now combine the outputs
 #
 # Combine the outputs
 # TODO: explore the -j option to hadd to parallelize this step too
-echo "Hadding output files..."
+echo -n "Hadding output files..."
 hadd -v ${DEBUG} -f ${OUTDIR}/output_full.root ${OUTDIR}/output_N*.root
 
 # Clean up
 rm ${OUTDIR}/output_N*.root
 
-echo ""
-echo "All done!"
+echo " Done."
+echo "All done! Output file is in ${OUTDIR}"
