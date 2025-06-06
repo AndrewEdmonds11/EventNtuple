@@ -5,8 +5,13 @@
 #
 
 # Some global settings
-DEBUG=0
 MAX_JOBS=20
+
+# Default inputs
+DEBUG=0
+MACRO_FILE="unknown"
+FILELIST="unknown"
+N_JOBS=1
 
 usage() {
 
@@ -18,25 +23,20 @@ usage() {
      - submit parallel jobs, and
      - combine the output ROOT files
 
-   rooutilrunner [-h|--help] [-m|--macro MACRO_NAME] [-v|--verbose] [-f|--filelist FILELIST] [-n | --njobs NJOBS]
+   rooutilrunner [-h|--help] [-m|--macro MACRO_NAME] [-v|--verbose] [-f|--filelist FILELIST] [-n|--njobs NJOBS]
 
 
    Arguments:
    -h, --help: print help
    -m, --macro: macro.C file that you want to run in parallel
    -v, --verbose: debug output
-   -f,--filelist: filelist containing list of files that you want to process
-   -n,--njobs: number of jobs to run in parallel (max: ${MAX_JOBS})
+   -f, --filelist: filelist containing list of files that you want to process
+   -n, --njobs: number of jobs to run in parallel (default: ${N_JOBS}, max: ${MAX_JOBS})
 EOF
 }
 
 vars=$(getopt -o hm:vf:n: --long help,macro:,verbose,filelist:,njobs: -- "$@")
 eval set -- "$vars"
-
-# Defaults
-MACRO_FILE="unknown"
-FILELIST="unknown"
-N_JOBS=1
 
 for opt; do
     case "$opt" in
@@ -171,6 +171,10 @@ int main(int argc, char* argv[]) {
 # Compile the program
 echo "Compiling..."
 g++ macro.cxx $(root-config --cflags --libs) ${INC_PATHS} -o macro
+if [ $? -ne 0 ]; then
+    echo "Compilation failed."
+    exit 1
+fi
 echo "Done"
 echo ""
 
