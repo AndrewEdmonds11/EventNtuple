@@ -3,8 +3,10 @@
 #include "EventNtuple/fcl/from_mcs-mockdata.fcl"
 
 process_name: DeCalib
-source : { module_type : RootInput }
-services : @local::Services.Reco
+// These are already #included from the above and we want to make sure
+// all fcls get the same geometry
+//source : { module_type : RootInput }
+//services : @local::Services.Reco
 physics :
 {
   producers : {
