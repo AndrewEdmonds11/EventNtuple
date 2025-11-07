@@ -5,3 +5,5 @@ physics.analyzers.EventNtuple.branches[0].branch : "trk"
 physics.analyzers.EventNtuple.FillTriggerInfo : false
 physics.EventNtuplePath : [ MergeKKDe, PBIWeight, TrkQualDe, TrkPIDDe ]
 physics.EventNtupleEndPath : [ EventNtuple, genCountLogger ]
+
+#include "Production/JobConfig/common/epilog.fcl"
