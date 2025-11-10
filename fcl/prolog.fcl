@@ -298,7 +298,7 @@ EventNtupleMaker : {
   FillTrkPIDInfo : false
   FillHitInfo : true
   FillHitCalibInfo : false
-  FillTriggerInfo : true
+  FillTriggerInfo : false # true
   TriggerProcessName : "Digitize"
   TriggerPathSuffix : "DigitizePath"  
   FillCRVCoincs : true
